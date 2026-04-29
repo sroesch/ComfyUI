@@ -24,3 +24,7 @@ web_custom_versions/
 openapi.yaml
 filtered-openapi.yaml
 uv.lock
+
+# ─── Personal customization (Steven's fork) ─────────────────
+.env
+.DS_Store
