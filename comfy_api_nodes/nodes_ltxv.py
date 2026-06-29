@@ -28,13 +28,29 @@ class ExecuteTaskRequest(BaseModel):
     image_uri: str | None = Field(None)
 
 
+PRICE_BADGE = IO.PriceBadge(
+    depends_on=IO.PriceBadgeDepends(widgets=["model", "duration", "resolution"]),
+    expr="""
+    (
+      $prices := {
+        "ltx-2 (pro)": {"1920x1080":0.06,"2560x1440":0.12,"3840x2160":0.24},
+        "ltx-2 (fast)": {"1920x1080":0.04,"2560x1440":0.08,"3840x2160":0.16}
+      };
+      $modelPrices := $lookup($prices, $lowercase(widgets.model));
+      $pps := $lookup($modelPrices, widgets.resolution);
+      {"type":"usd","usd": $pps * widgets.duration}
+    )
+    """,
+)
+
+
 class TextToVideoNode(IO.ComfyNode):
     @classmethod
     def define_schema(cls):
         return IO.Schema(
             node_id="LtxvApiTextToVideo",
             display_name="LTXV Text To Video",
-            category="api node/video/LTXV",
+            category="partner/video/LTXV",
             description="Professional-quality videos with customizable duration and resolution.",
             inputs=[
                 IO.Combo.Input("model", options=list(MODELS_MAP.keys())),
@@ -58,6 +74,7 @@ class TextToVideoNode(IO.ComfyNode):
                     default=False,
                     optional=True,
                     tooltip="When true, the generated video will include AI-generated audio matching the scene.",
+                    advanced=True,
                 ),
             ],
             outputs=[
@@ -69,6 +86,7 @@ class TextToVideoNode(IO.ComfyNode):
                 IO.Hidden.unique_id,
             ],
             is_api_node=True,
+            price_badge=PRICE_BADGE,
         )
 
     @classmethod
@@ -109,7 +127,7 @@ class ImageToVideoNode(IO.ComfyNode):
         return IO.Schema(
             node_id="LtxvApiImageToVideo",
             display_name="LTXV Image To Video",
-            category="api node/video/LTXV",
+            category="partner/video/LTXV",
             description="Professional-quality videos with customizable duration and resolution based on start image.",
             inputs=[
                 IO.Image.Input("image", tooltip="First frame to be used for the video."),
@@ -134,6 +152,7 @@ class ImageToVideoNode(IO.ComfyNode):
                     default=False,
                     optional=True,
                     tooltip="When true, the generated video will include AI-generated audio matching the scene.",
+                    advanced=True,
                 ),
             ],
             outputs=[
@@ -145,6 +164,7 @@ class ImageToVideoNode(IO.ComfyNode):
                 IO.Hidden.unique_id,
             ],
             is_api_node=True,
+            price_badge=PRICE_BADGE,
         )
 
     @classmethod

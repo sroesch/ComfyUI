@@ -3,9 +3,21 @@ Job utilities for the /api/jobs endpoint.
 Provides normalization and helper functions for job status tracking.
 """
 
-from typing import Optional
+import uuid
+from typing import Callable, Optional
 
 from comfy_api.internal import prune_dict
+
+
+# Result of classifying a job for cancellation.
+# 'running'  -> job is currently executing (interrupt it)
+# 'pending'  -> job is queued but not started (dequeue it)
+# 'terminal' -> job already finished (present in history); cancel is a no-op
+# 'unknown'  -> job id is not present anywhere
+CANCEL_RUNNING = 'running'
+CANCEL_PENDING = 'pending'
+CANCEL_TERMINAL = 'terminal'
+CANCEL_UNKNOWN = 'unknown'
 
 
 class JobStatus:
@@ -14,15 +26,102 @@ class JobStatus:
     IN_PROGRESS = 'in_progress'
     COMPLETED = 'completed'
     FAILED = 'failed'
+    CANCELLED = 'cancelled'
 
-    ALL = [PENDING, IN_PROGRESS, COMPLETED, FAILED]
+    ALL = [PENDING, IN_PROGRESS, COMPLETED, FAILED, CANCELLED]
+
+
+def validate_job_id(value) -> str:
+    """Validate a client-supplied job (prompt) id.
+
+    Job ids must be UUIDs in the canonical lowercase hyphenated form. The id
+    is stored and compared verbatim everywhere downstream — history keys,
+    websocket events, and /interrupt matching — so accepting another spelling
+    would silently rewrite the client's id and then miss every exact-match
+    lookup. Rejecting loudly beats that.
+
+    Returns the id unchanged. Raises ValueError when the value is not a
+    string in canonical UUID form.
+    """
+    if not isinstance(value, str):
+        raise ValueError(f"job id must be a string, got {type(value).__name__}")
+    if str(uuid.UUID(value)) != value:
+        raise ValueError("job id must be a UUID in canonical lowercase hyphenated form")
+    return value
 
 
 # Media types that can be previewed in the frontend
-PREVIEWABLE_MEDIA_TYPES = frozenset({'images', 'video', 'audio'})
+PREVIEWABLE_MEDIA_TYPES = frozenset({'images', 'video', 'audio', '3d', 'text'})
 
 # 3D file extensions for preview fallback (no dedicated media_type exists)
-THREE_D_EXTENSIONS = frozenset({'.obj', '.fbx', '.gltf', '.glb'})
+THREE_D_EXTENSIONS = frozenset({'.obj', '.fbx', '.gltf', '.glb', '.usdz'})
+
+
+def has_3d_extension(filename: str) -> bool:
+    lower = filename.lower()
+    return any(lower.endswith(ext) for ext in THREE_D_EXTENSIONS)
+
+
+def normalize_output_item(item):
+    """Normalize a single output list item for the jobs API.
+
+    Returns the normalized item, or None to exclude it.
+    String items with 3D extensions become {filename, type, subfolder} dicts.
+    """
+    if item is None:
+        return None
+    if isinstance(item, str):
+        if has_3d_extension(item):
+            return {'filename': item, 'type': 'output', 'subfolder': '', 'mediaType': '3d'}
+        return None
+    if isinstance(item, dict):
+        return item
+    return None
+
+
+def normalize_outputs(outputs: dict) -> dict:
+    """Normalize raw node outputs for the jobs API.
+
+    Transforms string 3D filenames into file output dicts and removes
+    None items. All other items (non-3D strings, dicts, etc.) are
+    preserved as-is.
+    """
+    normalized = {}
+    for node_id, node_outputs in outputs.items():
+        if not isinstance(node_outputs, dict):
+            normalized[node_id] = node_outputs
+            continue
+        normalized_node = {}
+        for media_type, items in node_outputs.items():
+            if media_type == 'animated' or not isinstance(items, list):
+                normalized_node[media_type] = items
+                continue
+            normalized_items = []
+            for item in items:
+                if item is None:
+                    continue
+                norm = normalize_output_item(item)
+                normalized_items.append(norm if norm is not None else item)
+            normalized_node[media_type] = normalized_items
+        normalized[node_id] = normalized_node
+    return normalized
+
+# Text preview truncation limit (1024 characters) to prevent preview_output bloat
+TEXT_PREVIEW_MAX_LENGTH = 1024
+
+
+def _create_text_preview(value: str) -> dict:
+    """Create a text preview dict with optional truncation.
+
+    Returns:
+        dict with 'content' and optionally 'truncated' flag
+    """
+    if len(value) <= TEXT_PREVIEW_MAX_LENGTH:
+        return {'content': value}
+    return {
+        'content': value[:TEXT_PREVIEW_MAX_LENGTH],
+        'truncated': True
+    }
 
 
 def _extract_job_metadata(extra_data: dict) -> tuple[Optional[int], Optional[str]]:
@@ -44,9 +143,9 @@ def is_previewable(media_type: str, item: dict) -> bool:
     Maintains backwards compatibility with existing logic.
 
     Priority:
-    1. media_type is 'images', 'video', or 'audio'
+    1. media_type is 'images', 'video', 'audio', or '3d'
     2. format field starts with 'video/' or 'audio/'
-    3. filename has a 3D extension (.obj, .fbx, .gltf, .glb)
+    3. filename has a 3D extension (.obj, .fbx, .gltf, .glb, .usdz)
     """
     if media_type in PREVIEWABLE_MEDIA_TYPES:
         return True
@@ -94,12 +193,6 @@ def normalize_history_item(prompt_id: str, history_item: dict, include_outputs: 
 
     status_info = history_item.get('status', {})
     status_str = status_info.get('status_str') if status_info else None
-    if status_str == 'success':
-        status = JobStatus.COMPLETED
-    elif status_str == 'error':
-        status = JobStatus.FAILED
-    else:
-        status = JobStatus.COMPLETED
 
     outputs = history_item.get('outputs', {})
     outputs_count, preview_output = get_outputs_summary(outputs)
@@ -107,6 +200,7 @@ def normalize_history_item(prompt_id: str, history_item: dict, include_outputs: 
     execution_error = None
     execution_start_time = None
     execution_end_time = None
+    was_interrupted = False
     if status_info:
         messages = status_info.get('messages', [])
         for entry in messages:
@@ -119,6 +213,15 @@ def normalize_history_item(prompt_id: str, history_item: dict, include_outputs: 
                         execution_end_time = event_data.get('timestamp')
                         if event_name == 'execution_error':
                             execution_error = event_data
+                        elif event_name == 'execution_interrupted':
+                            was_interrupted = True
+
+    if status_str == 'success':
+        status = JobStatus.COMPLETED
+    elif status_str == 'error':
+        status = JobStatus.CANCELLED if was_interrupted else JobStatus.FAILED
+    else:
+        status = JobStatus.COMPLETED
 
     job = prune_dict({
         'id': prompt_id,
@@ -134,7 +237,7 @@ def normalize_history_item(prompt_id: str, history_item: dict, include_outputs: 
     })
 
     if include_outputs:
-        job['outputs'] = outputs
+        job['outputs'] = normalize_outputs(outputs)
         job['execution_status'] = status_info
         job['workflow'] = {
             'prompt': prompt,
@@ -167,15 +270,41 @@ def get_outputs_summary(outputs: dict) -> tuple[int, Optional[dict]]:
 
             for item in items:
                 if not isinstance(item, dict):
-                    continue
+                    # Handle text outputs (non-dict items like strings or tuples)
+                    normalized = normalize_output_item(item)
+                    if normalized is None:
+                        # Not a 3D file string — check for text preview
+                        if media_type == 'text':
+                            count += 1
+                            if preview_output is None:
+                                if isinstance(item, tuple):
+                                    text_value = item[0] if item else ''
+                                else:
+                                    text_value = str(item)
+                                text_preview = _create_text_preview(text_value)
+                                enriched = {
+                                    **text_preview,
+                                    'nodeId': node_id,
+                                    'mediaType': media_type
+                                }
+                                if fallback_preview is None:
+                                    fallback_preview = enriched
+                        continue
+                    # normalize_output_item returned a dict (e.g. 3D file)
+                    item = normalized
+
                 count += 1
 
-                if preview_output is None and is_previewable(media_type, item):
+                if preview_output is not None:
+                    continue
+
+                if is_previewable(media_type, item):
                     enriched = {
                         **item,
                         'nodeId': node_id,
-                        'mediaType': media_type
                     }
+                    if 'mediaType' not in item:
+                        enriched['mediaType'] = media_type
                     if item.get('type') == 'output':
                         preview_output = enriched
                     elif fallback_preview is None:
@@ -268,13 +397,13 @@ def get_all_jobs(
         for item in queued:
             jobs.append(normalize_queue_item(item, JobStatus.PENDING))
 
-    include_completed = JobStatus.COMPLETED in status_filter
-    include_failed = JobStatus.FAILED in status_filter
-    if include_completed or include_failed:
+    history_statuses = {JobStatus.COMPLETED, JobStatus.FAILED, JobStatus.CANCELLED}
+    requested_history_statuses = history_statuses & set(status_filter)
+    if requested_history_statuses:
         for prompt_id, history_item in history.items():
-            is_failed = history_item.get('status', {}).get('status_str') == 'error'
-            if (is_failed and include_failed) or (not is_failed and include_completed):
-                jobs.append(normalize_history_item(prompt_id, history_item))
+            job = normalize_history_item(prompt_id, history_item)
+            if job.get('status') in requested_history_statuses:
+                jobs.append(job)
 
     if workflow_id:
         jobs = [j for j in jobs if j.get('workflow_id') == workflow_id]
@@ -289,3 +418,71 @@ def get_all_jobs(
         jobs = jobs[:limit]
 
     return (jobs, total_count)
+
+
+def classify_job_for_cancel(prompt_id: str, running: list, queued: list, history: dict) -> str:
+    """Classify a job id for cancellation.
+
+    Returns one of CANCEL_RUNNING, CANCEL_PENDING, CANCEL_TERMINAL, CANCEL_UNKNOWN.
+
+    Queue items are tuples whose second element (index 1) is the prompt_id.
+    History is a dict keyed by prompt_id, so a job present there has already
+    finished and cancelling it is a no-op.
+    """
+    for item in running:
+        if item[1] == prompt_id:
+            return CANCEL_RUNNING
+    for item in queued:
+        if item[1] == prompt_id:
+            return CANCEL_PENDING
+    if prompt_id in history:
+        return CANCEL_TERMINAL
+    return CANCEL_UNKNOWN
+
+
+def cancel_job(
+    prompt_id: str,
+    running: list,
+    queued: list,
+    history: dict,
+    interrupt: Callable[[str], bool],
+    dequeue: Callable[[str], bool],
+) -> str:
+    """Cancel a single job by id, regardless of state.
+
+    Maps the cancel onto the runtime's existing mechanics:
+      - a running job is interrupted via ``interrupt``
+      - a pending job is removed from the queue via ``dequeue``
+      - a job that already finished (terminal) is a no-op
+      - an unknown id is a no-op (callers that need fail-fast behaviour should
+        validate ids up front with ``classify_job_for_cancel``)
+
+    Both ``interrupt`` and ``dequeue`` take the prompt id and return whether
+    they acted on a job that was *actually* in that state, so the value returned
+    here reflects what truly happened rather than the (possibly stale)
+    classification. This matters around the narrow TOCTOU windows where a job
+    changes state between the caller's snapshot and the action:
+
+      - a job classified RUNNING may have finished before ``interrupt`` fires:
+        ``interrupt`` returns False and this returns CANCEL_UNKNOWN (no-op).
+      - a job classified PENDING may have started executing before ``dequeue``
+        fires: ``dequeue`` returns False, ``interrupt`` then catches the now-
+        running job and this returns CANCEL_RUNNING. If it had simply finished
+        instead, both return False and this returns CANCEL_UNKNOWN.
+
+    ``interrupt`` must be atomic — interrupt the job only if it is still the one
+    running — so a cancel can never land on an unrelated prompt that started in
+    the meantime (see ``execution.PromptQueue.interrupt_if_running``).
+    """
+    classification = classify_job_for_cancel(prompt_id, running, queued, history)
+    if classification == CANCEL_RUNNING:
+        return CANCEL_RUNNING if interrupt(prompt_id) else CANCEL_UNKNOWN
+    if classification == CANCEL_PENDING:
+        if dequeue(prompt_id):
+            return CANCEL_PENDING
+        # Left the pending queue between classification and dequeue: if it
+        # started executing, interrupt the now-running job; otherwise it has
+        # already finished and the cancel is a genuine no-op.
+        return CANCEL_RUNNING if interrupt(prompt_id) else CANCEL_UNKNOWN
+    # CANCEL_TERMINAL and CANCEL_UNKNOWN are intentional no-ops.
+    return classification

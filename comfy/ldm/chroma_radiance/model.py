@@ -38,6 +38,8 @@ class ChromaRadianceParams(ChromaParams):
     # None means use the same dtype as the model.
     nerf_embedder_dtype: Optional[torch.dtype]
     use_x0: bool
+    # Use sequential txt_ids instead of zeros
+    use_sequential_txt_ids: bool
 
 class ChromaRadiance(Chroma):
     """
@@ -162,6 +164,9 @@ class ChromaRadiance(Chroma):
         if params.use_x0:
             self.register_buffer("__x0__", torch.tensor([]))
 
+        if params.use_sequential_txt_ids:
+            self.register_buffer("__sequential__", torch.tensor([]))
+
     @property
     def _nerf_final_layer(self) -> nn.Module:
         if self.params.nerf_final_head_type == "linear":
@@ -270,7 +275,7 @@ class ChromaRadiance(Chroma):
         bad_keys = tuple(
             k
             for k, v in overrides.items()
-            if type(v) != type(getattr(params, k)) and (v is not None or k not in nullable_keys)
+            if not isinstance(v, type(getattr(params, k))) and (v is not None or k not in nullable_keys)
         )
         if bad_keys:
             e = f"Invalid value(s) in transformer_options chroma_radiance_options: {', '.join(bad_keys)}"
@@ -313,6 +318,9 @@ class ChromaRadiance(Chroma):
         img_ids[:, :, 2] = img_ids[:, :, 2] + torch.linspace(0, w_len - 1, steps=w_len, device=x.device, dtype=x.dtype).unsqueeze(0)
         img_ids = repeat(img_ids, "h w c -> b (h w) c", b=bs)
         txt_ids = torch.zeros((bs, context.shape[1], 3), device=x.device, dtype=x.dtype)
+        # Radiance after 2026-05-22 uses sequential txt_ids instead of zeros
+        if params.use_sequential_txt_ids:
+            txt_ids[:, :, 0] = torch.arange(context.shape[1], device=x.device, dtype=x.dtype).unsqueeze(0).expand(bs, -1)
 
         img_out = self.forward_orig(
             img,
