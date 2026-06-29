@@ -157,8 +157,9 @@ kill $(lsof -ti :8189) && cd ~/ComfyUI/ComfyUI && ./start_comfyui.sh
 - [integrations.md](./claude-docs/integrations.md) — OpenWebUI tool functions + workspace settings + deploy workflow + OWUI lessons; n8n integration plan
 - [lessons-learned.md](./claude-docs/lessons-learned.md) — full list of hard-won gotchas (workflow format, SAM/DINO, mask discipline, SDXL architecture, IP-Adapter/LoRA, InstantID, watermark)
 - [roadmap.md](./claude-docs/roadmap.md) — Phase 12 in-progress + Phase 13 next; Phases 2–11 collapsed to changelog pointer
+- [changelog.md](./claude-docs/changelog.md) — ComfyUI per-session narrative history (source of truth; newest on top)
 
-For broader project reference: `~/claude-project-docs/` — `ComfyUI_Image_Generation_Guide.md`, `ComfyUI_Project_Summary_Supplement.md`, `LLM_Project_Changelog_v2_Mac.md`, `LLM_Full_Project_Summary_v2.md`, `Quick_Reference_Commands.md`.
+For broader project reference: `~/claude-project-docs/` — `ComfyUI_Image_Generation_Guide.md`, `ComfyUI_Project_Summary_Supplement.md`, `LLM_System_Timeline.md` (cross-cutting/infra), `LLM_Project_Changelog_2026-H1_archive.md` (pre-2026-07 history), `LLM_Full_Project_Summary_v2.md`, `Quick_Reference_Commands.md`.
 
 ## End-of-Session Wrapup Routing
 
@@ -168,6 +169,6 @@ When `/wrapup` runs after a session, route updates to the right destination:
 - **New gotcha or hard-won lesson** → `claude-docs/lessons-learned.md`
 - **Phase progression / next steps** → `claude-docs/roadmap.md`
 - **Global infra change** (port, Caddy, startup flags, dependencies) → this main CLAUDE.md
-- **Session narrative** → `~/claude-project-docs/LLM_Project_Changelog_v2_Mac.md` only
+- **Session narrative** → `claude-docs/changelog.md` (this project). Cross-cutting/infra narrative → `~/claude-project-docs/LLM_System_Timeline.md`.
 
 If this main CLAUDE.md grows past ~150 lines, flag for splitting in the wrapup handoff.
