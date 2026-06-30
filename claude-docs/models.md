@@ -10,6 +10,7 @@
 | Placing furniture in empty rooms | SDXL `inpaint_room` | Fooocus inpaint + SAM auto-mask or manual clipspace mask |
 | Style transfer from reference | SDXL `transfer_style` | IP-Adapter Plus SDXL + ControlNet depth |
 | Face-locked portrait/headshot | SDXL `transform_image` | InstantID + 2-pass FaceDetailer |
+| FLUX.2 edit/staging experiments | FLUX.2 [klein] 9B (one-node) | Modern edit/inpaint/outpaint in a single node; **9B = personal/non-commercial only** (see license note) |
 
 **Cannot run FLUX and SDXL simultaneously** — sequential only.
 
@@ -45,6 +46,27 @@ Canvas sizes:
   Landscape: 1152×768    ← canvas_size="landscape" (inpaint_room)
   Portrait:  768×1024    ← canvas_size="portrait"
 ```
+
+## FLUX.2 [klein] (one-node-flux-2-klein)
+
+Single all-in-one node (T2I/I2I/EDIT/PAINT/FACESWAP/POSE). Loaded as native single-file `.safetensors` in `diffusion_models/` **or** via an external `Unet Loader (GGUF)` node. There is **no official Comfy-Org single-file repackage of klein-9B** (only flux2-*dev* has one), and BFL's repo is gated diffusers-only — so on this box the model is sourced as **GGUF** fed through the external loader.
+
+**9B file set (currently installed):**
+
+```
+diffusion_models/   flux-2-klein-9b-BF16.gguf        (unsloth GGUF, 17 GiB, full-precision)
+text_encoders/      qwen_3_8b.safetensors            (Comfy-Org, 15 GiB — MUST match the model; not interchangeable)
+vae/                flux2-vae.safetensors            (Comfy-Org, 321 MB)
+loras/              bfs_head_v1_flux-klein_9b_step3500_rank128.safetensors   (Faceswap mode)
+loras/              refcontrol_v2_poses.safetensors  (POSE mode)
+background_removal/ birefnet.safetensors             (PAINT → Remove BG)
+```
+
+**Wiring:** node Settings → enable "External model/clip/vae inputs" → `Unet Loader (GGUF)` → model slot = `flux-2-klein-9b-BF16.gguf`; text-encoder dropdown = `qwen_3_8b.safetensors`; VAE dropdown = `flux2-vae.safetensors`.
+
+**4B alternative:** same node, swap GGUF for the 4B diffusion model + `qwen_3_4b` text encoder. 4B is **Apache 2.0 (commercial OK)**; preferred for any listing/marketing work.
+
+**License (klein 9B):** FLUX Non-Commercial License v2.1. §2-b limits *model use* to Non-Commercial Purposes; §1-c excludes revenue-generating / business / end-user-facing use; §4-a(i) expressly bars commercial/production use of the model *and* "any data produced by" it. The §2-d "Outputs may be used commercially" clause is gated by "except as expressly prohibited herein" → 4-a(i). Net: 9B = personal/experimentation only; use 4B (Apache) or a BFL commercial license (bfl.ai/licensing; Builder tier is the self-serve one) for real listing output.
 
 ## OWUI tool model constants (verify at top of `openwebui_tool_comfyui.py`)
 

@@ -98,11 +98,14 @@ Firefox HSTS cache can force HTTPS and break access — use Chrome, or clear HST
 | ComfyUI-Impact-Pack (ltdrdata) | FaceDetailer |
 | ComfyUI-Impact-Subpack (ltdrdata) | UltralyticsDetectorProvider / YOLO bbox — **separate repo from Impact-Pack** |
 | ComfyUI-SD3-nodes / comfyui-sd3-powerlab | SD3.5 TripleCLIPLoader (legacy, SD3.5 inactive) |
+| one-node-flux-2-klein (yanokusnir-ai) | All-in-one FLUX.2 [klein] node: T2I/I2I/EDIT/PAINT/FACESWAP/POSE. Deps already present: comfyui-inpaint-cropandstitch (PAINT), comfyui_controlnet_aux (POSE/DWPose). No `requirements.txt`. |
+| ComfyUI-GGUF (city96) | `Unet Loader (GGUF)` etc. — loads GGUF diffusion weights; feeds the klein node's external-loader slot. Needs `gguf` in the venv. |
 
 **Node gotchas:**
 - `comfyui_segment_anything` requires `timm==0.9.2` — newer timm breaks `sam_hq` import.
 - `UltralyticsDetectorProvider` lives in Impact-**Subpack**, not Impact-Pack.
 - Segment_anything class_types include `" (segment anything)"` suffix — required in workflow JSON.
+- `ComfyUI-GGUF` needs `gguf` installed into the ComfyUI venv (`./venv/bin/pip install -r custom_nodes/ComfyUI-GGUF/requirements.txt`; currently `gguf 0.19.0`) — without it the node fails to import and `Unet Loader (GGUF)` won't appear.
 
 ## Critical Rules (top gotchas)
 

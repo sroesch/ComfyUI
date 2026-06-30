@@ -75,3 +75,10 @@ Hard-won lessons from building, deploying, and running the SDXL/FLUX stack. OWUI
 ## Watermark
 
 50. **PIL watermark re-upload uses `&type=input`** — after stamping, image is uploaded to ComfyUI's `/upload/image` with `type=input`. HTTPS URL returned to OWUI must include `&type=input` (not `output`) or ComfyUI returns 404.
+
+## FLUX.2 [klein] / GGUF
+
+51. **ComfyUI cannot load MLX models** — it runs on PyTorch/Metal (MPS); MLX is a separate runtime (oMLX, Draw Things, DiffusionKit). The stack's `~/Models/Qwen3.5-9B-MLX-8bit` (and any `mlx-community/*`) is unusable as a ComfyUI text encoder. Need a PyTorch `.safetensors`.
+52. **Diffusion text encoders are NOT interchangeable** — the transformer is trained against one specific encoder's embedding space. FLUX.2 klein 9B requires the **matching `qwen_3_8b`** (Qwen3-8B, older gen) — a newer/bigger Qwen (e.g. Qwen3.5-9B) produces noise, not "better" output. Same logic blocks substituting any "upgraded" encoder.
+53. **No official Comfy single-file repackage of klein-9B** — only flux2-*dev* has one; BFL's `FLUX.2-klein-9B` is gated + diffusers-only (sharded folder), which the one-node loader can't read (it scans single-file `.safetensors/.ckpt/.pt/.pth`). Path on this box: **GGUF** (unsloth, public, no gate) via `ComfyUI-GGUF`'s `Unet Loader (GGUF)` → node's external-loader slot. BF16 GGUF (17 GiB) is full-precision, so no quality loss; 128 GB RAM makes quantization unnecessary (quants exist for small-VRAM, not us).
+54. **klein 9B is FLUX Non-Commercial License v2.1** — personal/experimentation only. §4-a(i) is the express bar (covers model *and* "any data produced by" it for commercial/production); §2-d's commercial-output clause is gated by it. For listing/marketing output use **4B (Apache 2.0)** or a BFL commercial license. See [models.md](./models.md) FLUX.2 section.
