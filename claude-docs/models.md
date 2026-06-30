@@ -62,7 +62,25 @@ loras/              refcontrol_v2_poses.safetensors  (POSE mode)
 background_removal/ birefnet.safetensors             (PAINT → Remove BG)
 ```
 
-**Wiring:** node Settings → enable "External model/clip/vae inputs" → `Unet Loader (GGUF)` → model slot = `flux-2-klein-9b-BF16.gguf`; text-encoder dropdown = `qwen_3_8b.safetensors`; VAE dropdown = `flux2-vae.safetensors`.
+**Wiring:** node Settings → enable "External model/clip/vae inputs" → `Unet Loader (GGUF)` → model slot = `flux-2-klein-9b-BF16.gguf`; text-encoder dropdown = `qwen_3_8b.safetensors`; VAE dropdown = `flux2-vae.safetensors`. The GGUF model **must** come through the external loader — the node's MODEL dropdown scans only `.safetensors/.ckpt/.pt/.pth`, so a `.gguf` never appears there. CLIP/VAE stay on their dropdowns: an unconnected external socket falls back to the dropdown value, so no CLIPLoader/VAELoader node is needed for plain `.safetensors` encoders/VAE.
+
+**Mode mechanics** (the modes are different *mechanisms*, not flavors of one thing — pick by job):
+
+| Mode | Mechanism | Use for | Prompt style |
+|---|---|---|---|
+| **T2I** | text → image from noise | generate from scratch | full scene description (natural-language prose) |
+| **I2I** | img2img, denoise overwrite | loose reinterpretation of one image | describe the whole desired final image |
+| **EDIT** | reference-latent (Kontext); up to **2** ref images | "change X, keep the rest" / combine two images | **imperative** instruction + explicit *preserve* clause |
+| **PAINT** | masked inpaint/outpaint | surgical change to one region | describe **only what fills the mask** |
+
+- **"Change Strength" slider = the I2I KSampler `denoise`**, 1:1 (75% → 0.75). Just renamed in the UI.
+- **I2I has a change-vs-preserve wall for big edits:** low denoise (≤0.6) preserves layout but won't apply a large material/color swap at all (at CFG 1 there's no guidance to overcome the input-image prior); high denoise (0.75) applies the change but drifts the layout. No single global-denoise value does both — use **EDIT or PAINT** for staging swaps, not I2I.
+- **EDIT region-scope bleed:** location words ("back wall", "perimeter") catch *every* surface in that zone (e.g. a "back wall counter" instruction also recolors the backsplash). Disambiguate by naming the preserved element **and its material** ("keep the white Calacatta marble island unchanged").
+- **PAINT mask = location AND size/quantity:** the model fills the masked *volume*, so an oversized mask yields oversized/extra objects (a single-sofa prompt on a large mask produced a whole sectional). Mask the object's full volume incl. vertical height (a sofa's back, not just its floor footprint); add a grounding cue ("realistic contact shadows on the floor") for believable furniture; build complex scenes in **layered passes** (furniture, then rug separately).
+- **Steps:** klein is step-distilled (~4 optimal). More steps ≠ more prompt adherence (that's guidance) and ≠ more change (that's denoise). In img2img, *effective* steps = `steps × denoise`, so when you lower Change Strength, raise steps to keep detail from going undercooked.
+- **CFG stays at 1** (klein is guidance-distilled). Raising it breaks output; negative prompts do ~nothing at CFG 1.
+
+> General image-gen terminology (denoise, CFG, sampler, scheduler, GGUF vs NVFP4/DF11, etc.) lives in `~/claude-project-docs/Image_Generation_Glossary.md` — a model-agnostic quick reference with Apple-Silicon format guidance.
 
 **4B alternative:** same node, swap GGUF for the 4B diffusion model + `qwen_3_4b` text encoder. 4B is **Apache 2.0 (commercial OK)**; preferred for any listing/marketing work.
 

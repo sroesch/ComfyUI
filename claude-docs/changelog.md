@@ -19,6 +19,17 @@ Per-project narrative history (source of truth for the ComfyUI subsystem). Cross
 
 <!-- New ComfyUI entries go below this line, newest on top. -->
 
+## 2026-06-30 (Session 28) — FLUX.2 [klein] runtime-validated end-to-end (T2I/I2I/EDIT/PAINT) + image-gen glossary
+**Trigger:** Session 27 installed klein 9B but never restarted ComfyUI / runtime-tested. Steven restarted, wired the node, and ran the full mode arc — also wanting to learn image-gen concepts coming from a Stability background.
+**Fix/Task:**
+- **GGUF wiring confirmed:** model absent from the node's MODEL dropdown because it scans `.safetensors/.ckpt/.pt/.pth` only (`nodes.py`). Wired via External-inputs toggle → `Unet Loader (GGUF)` → `model` socket. Verified `ComfyUI-GGUF` imported clean (`object_info` lists `UnetLoaderGGUF` et al.). CLIP/VAE left on dropdowns (unconnected sockets fall back to dropdown values — verified in JS `_extSlot`).
+- **Full mode characterization on klein:** T2I (luxury kitchen, excellent first-prompt result) → I2I (proved the change-vs-preserve wall across denoise 0.45/0.60/0.75) → EDIT (reference-latent/Kontext instruction editing landed the green-cabinet swap I2I couldn't, while locking layout; learned region-scope bleed + disambiguation) → PAINT (masked backsplash fix = zero bleed; furniture-placement test on a real listing photo learned mask-size = object-size/count + vertical-volume + grounding cue).
+- **"Change Strength" decoded** as the I2I KSampler `denoise` (1:1) by reading the node JS.
+- **Created `~/claude-project-docs/Image_Generation_Glossary.md`** — model-agnostic terminology quick-ref (core dials, model parts, modes, file formats/quantization with Apple-Silicon targeting, prompting, rules of thumb). Includes a GGUF-vs-NVFP4/DF11/INT8/SVDQuant section flagging which formats are useless on MPS.
+**Verification:** All four modes ran successfully and outputs reviewed (FK_00006 EDIT, FK_00007 EDIT-disambiguated, FK_00008 PAINT backsplash, FK_00010 PAINT furniture). klein behaves per the distilled-model model: 4 steps, CFG 1, no negative.
+**Files/Commits:** docs only — `claude-docs/{models,lessons-learned,changelog}.md`; new `~/claude-project-docs/Image_Generation_Glossary.md` (not git-tracked). No code/model changes (custom_nodes + models gitignored; install committed last session @ `0d69db6a`).
+**Docs/Memory:** models.md FLUX.2 mode-mechanics table + GGUF-dropdown note + glossary pointer; lessons-learned 55–59; memory `comfyui_roadmap.md` (S28) + `comfyui_architecture.md` runtime-validated flag; timeline one-liner.
+
 ## 2026-06-30 (Session 27) — FLUX.2 [klein] 9B installed (one-node + GGUF); license analysis
 **Trigger:** Steven wanted to try the `one-node-flux-2-klein` custom node (yanokusnir-ai) in ComfyUI, mainly toward digital-staging experiments.
 **Fix/Task:**

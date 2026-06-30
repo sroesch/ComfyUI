@@ -162,7 +162,7 @@ kill $(lsof -ti :8189) && cd ~/ComfyUI/ComfyUI && ./start_comfyui.sh
 - [roadmap.md](./claude-docs/roadmap.md) — Phase 12 in-progress + Phase 13 next; Phases 2–11 collapsed to changelog pointer
 - [changelog.md](./claude-docs/changelog.md) — ComfyUI per-session narrative history (source of truth; newest on top)
 
-For broader project reference: `~/claude-project-docs/` — `ComfyUI_Image_Generation_Guide.md`, `ComfyUI_Project_Summary_Supplement.md`, `LLM_System_Timeline.md` (cross-cutting/infra), `LLM_Project_Changelog_2026-H1_archive.md` (pre-2026-07 history), `LLM_Full_Project_Summary_v2.md`, `Quick_Reference_Commands.md`.
+For broader project reference: `~/claude-project-docs/` — `Image_Generation_Glossary.md` (model-agnostic terminology quick-ref: dials, modes, GGUF/quant formats for Apple Silicon), `ComfyUI_Image_Generation_Guide.md`, `ComfyUI_Project_Summary_Supplement.md`, `LLM_System_Timeline.md` (cross-cutting/infra), `LLM_Project_Changelog_2026-H1_archive.md` (pre-2026-07 history), `LLM_Full_Project_Summary_v2.md`, `Quick_Reference_Commands.md`.
 
 ## End-of-Session Wrapup Routing
 
