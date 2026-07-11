@@ -1,5 +1,7 @@
 # ComfyUI Roadmap
 
+> **Open work now lives on the roadmap board** → `~/roadmap-board/data/comfyui.md` (UI: https://stevens-mac-studio.tail7c9d1c.ts.net:8448). This file keeps phase-status narrative; the next-steps list moved to the board.
+
 ## Phases 2–11 ✅ Complete
 
 Per-phase narrative lives in `~/claude-project-docs/LLM_Project_Changelog_v2_Mac.md`. High-level snapshot:
@@ -23,12 +25,7 @@ OWUI tool quality + identity/expression control on `transform_image`.
 
 ## Phase 13 — Next
 
-- **Step 3:** real `appearance_strength=0.5` scowl test — verify system-prompt passthrough. (a) success → document; (b) brow-only → proceed to end_at=0.5.
-- **Step 4 (conditional):** `end_at: 1.0 → 0.5` on `ApplyInstantID` (line 755 in tool source), bump to v5.10.0. If identity loss too severe, migrate to `ApplyInstantIDAdvanced` (separate `ip_weight` / `cn_strength` / independent start-end).
-- User feedback on staging tab — pending.
-- Export SDXL inpaint workflow as litegraph JSON (never re-exported post-Phase-8).
-- LoRA replacement — find interior LoRA without embedded watermark.
-- n8n ComfyUI integration (medium-term).
+Next-steps list (expression-control end_at fix, staging feedback, inpaint export, LoRA replacement, n8n integration) now lives on the roadmap board → `~/roadmap-board/data/comfyui.md`.
 
 ## Digital staging note
 

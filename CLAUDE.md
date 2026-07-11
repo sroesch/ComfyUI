@@ -159,7 +159,7 @@ kill $(lsof -ti :8189) && cd ~/ComfyUI/ComfyUI && ./start_comfyui.sh
 - [prompt-engineering.md](./claude-docs/prompt-engineering.md) — FLUX dual encoder, SDXL CLIPTextEncodeSDXL, real-estate prompt rules, SDXL_NEGATIVE
 - [integrations.md](./claude-docs/integrations.md) — OpenWebUI tool functions + workspace settings + deploy workflow + OWUI lessons; n8n integration plan
 - [lessons-learned.md](./claude-docs/lessons-learned.md) — full list of hard-won gotchas (workflow format, SAM/DINO, mask discipline, SDXL architecture, IP-Adapter/LoRA, InstantID, watermark)
-- [roadmap.md](./claude-docs/roadmap.md) — Phase 12 in-progress + Phase 13 next; Phases 2–11 collapsed to changelog pointer
+- [roadmap.md](./claude-docs/roadmap.md) — Phase 12/13 status narrative; Phases 2–11 collapsed to changelog pointer. **Open/next-step work now lives on the roadmap board** → `~/roadmap-board/data/comfyui.md` (UI: https://stevens-mac-studio.tail7c9d1c.ts.net:8448)
 - [changelog.md](./claude-docs/changelog.md) — ComfyUI per-session narrative history (source of truth; newest on top)
 
 For broader project reference: `~/claude-project-docs/` — `Image_Generation_Glossary.md` (model-agnostic terminology quick-ref: dials, modes, GGUF/quant formats for Apple Silicon), `ComfyUI_Image_Generation_Guide.md`, `ComfyUI_Project_Summary_Supplement.md`, `LLM_System_Timeline.md` (cross-cutting/infra), `LLM_Project_Changelog_2026-H1_archive.md` (pre-2026-07 history), `LLM_Full_Project_Summary_v2.md`, `Quick_Reference_Commands.md`.
