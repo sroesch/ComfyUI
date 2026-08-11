@@ -108,8 +108,8 @@ SDXL_SAMPLER="dpmpp_2m" / SDXL_SCHEDULER="karras" / SDXL_STEPS=30 / SDXL_CFG=7
 |--------|----------------|
 | FLUX generation | ~32 GB |
 | SDXL generation | ~20 GB |
-| Ollama qwen3.5:35b loaded | ~20–25 GB |
-| Ollama + SDXL concurrent | ~40–45 GB |
+| oMLX `Qwen3.6-35B-A3B-8bit` loaded | ~35 GB (8-bit weights) |
+| oMLX + SDXL concurrent | ~55 GB (est. — sum of weights) |
 | SDXL + InstantID + FaceDetailer | ~35–40 GB |
 | ComfyUI idle | <2 GB |
 
