@@ -1,8 +1,8 @@
 """
 title: ComfyUI Image Generator
 author: Steven
-description: Generate and transform images with FLUX.1-schnell or SDXL/Juggernaut XL. Methods: generate_image (txt2img), transform_image (IP-Adapter appearance transfer, general use), edit_image (img2img+LoRA, rooms), stage_room (dual ControlNet depth+MLSD staging, 50 steps, MLS watermark), inpaint_room (Fooocus inpaint algorithm + SAM/rect mask, MLS watermark, 1152x768 landscape), transfer_style (IP-Adapter+ControlNet depth).
-version: 5.9.2
+description: Generate and transform images with SDXL/Juggernaut XL. Methods: generate_image (txt2img), transform_image (IP-Adapter appearance transfer, general use), edit_image (img2img+LoRA, rooms), stage_room (dual ControlNet depth+MLSD staging, 50 steps, MLS watermark), inpaint_room (Fooocus inpaint algorithm + SAM/rect mask, MLS watermark, 1152x768 landscape), transfer_style (IP-Adapter+ControlNet depth).
+version: 5.9.3
 requirements: aiohttp
 """
 
@@ -34,7 +34,7 @@ SDXL_SCHEDULER = "karras"
 SDXL_STEPS     = 30
 SDXL_CFG       = 7
 
-# Standard SDXL negative prompt — active for all methods (MMDiT SD3.5 ignored these; SDXL UNet uses them correctly)
+# Standard SDXL negative prompt — active for all methods
 SDXL_NEGATIVE = (
     "blurry, low quality, distorted, dark, heavy shadows, furniture floating, "
     "unrealistic lighting, poor composition, mismatched scale, oversized furniture, "
@@ -329,122 +329,55 @@ class Tools:
     async def generate_image(
         self,
         prompt: str,
-        model: str = "flux",
+        model: str = "sdxl",
         __event_emitter__=None,
     ) -> str:
         """
         Generate a new image from a text description.
 
         :param prompt: Full description of the image to generate. Be specific about materials, lighting, style, and camera perspective for best real estate results.
-        :param model: Which checkpoint to render with. ALWAYS pass this argument explicitly — do not rely on the default. Pass model="sdxl" for any real-estate, listing, MLS, print, interior, or staging work (Juggernaut XL, ~30s, photorealistic detail). Pass model="flux" only for social-media graphics or rapid concept iteration (FLUX.1-schnell, ~24s).
+        :param model: Pass model="sdxl". Juggernaut XL is the only text-to-image model, used for every purpose (listings, MLS, print, interiors, social media). Other values are accepted and also render with Juggernaut XL.
         """
-        model = model.lower().strip()
-        label = "FLUX.1-schnell" if "flux" in model else "Juggernaut XL"
+        # `model` is kept for compatibility with saved prompts and chats; every value renders Juggernaut XL.
+        label = "Juggernaut XL"
         await self._emit(__event_emitter__, f"Starting {label} generation...")
 
         seed = random.randint(0, 2**32 - 1)
 
-        if "flux" in model:
-            workflow = {
-                "1": {
-                    "inputs": {"unet_name": "flux-schnell/flux1-schnell.safetensors", "weight_dtype": "default"},
-                    "class_type": "UNETLoader",
+        # Juggernaut XL — general purpose txt2img (no interior LoRA for versatility)
+        clip_src = ["1", 1]
+        workflow = {
+            **self._sdxl_base(with_lora=False),
+            **self._sdxl_clip(prompt, SDXL_NEGATIVE, clip_src, node_pos="3", node_neg="99"),
+            "5": {
+                "inputs": {"width": 1024, "height": 1024, "batch_size": 1},
+                "class_type": "EmptyLatentImage",
+            },
+            "6": {
+                "inputs": {
+                    "seed": seed,
+                    "steps": SDXL_STEPS,
+                    "cfg": SDXL_CFG,
+                    "sampler_name": SDXL_SAMPLER,
+                    "scheduler": SDXL_SCHEDULER,
+                    "denoise": 1.0,
+                    "model": ["1", 0],
+                    "positive": ["3", 0],
+                    "negative": ["99", 0],
+                    "latent_image": ["5", 0],
                 },
-                "4": {
-                    "inputs": {"vae_name": "flux_vae.safetensors"},
-                    "class_type": "VAELoader",
-                },
-                "5": {
-                    "inputs": {"width": 1024, "height": 1024, "batch_size": 1},
-                    "class_type": "EmptyLatentImage",
-                },
-                "8": {
-                    "inputs": {
-                        "seed": seed,
-                        "steps": 4,
-                        "cfg": 1,
-                        "sampler_name": "euler",
-                        "scheduler": "simple",
-                        "denoise": 1,
-                        "model": ["1", 0],
-                        "positive": ["22", 0],
-                        "negative": ["21", 0],
-                        "latent_image": ["5", 0],
-                    },
-                    "class_type": "KSampler",
-                },
-                "9": {
-                    "inputs": {"samples": ["8", 0], "vae": ["4", 0]},
-                    "class_type": "VAEDecode",
-                },
-                "10": {
-                    "inputs": {"filename_prefix": "FLUX_owui_", "images": ["9", 0]},
-                    "class_type": "SaveImage",
-                },
-                "21": {
-                    "inputs": {
-                        "clip_l": "blurry, low quality, distorted",
-                        "t5xxl": "blurry, low quality, distorted, dark, heavy shadows, poor composition, amateur photography",
-                        "guidance": 3.5,
-                        "clip": ["26", 0],
-                    },
-                    "class_type": "CLIPTextEncodeFlux",
-                },
-                "22": {
-                    "inputs": {
-                        "clip_l": prompt[:300],
-                        "t5xxl": prompt,
-                        "guidance": 3.5,
-                        "clip": ["26", 0],
-                    },
-                    "class_type": "CLIPTextEncodeFlux",
-                },
-                "26": {
-                    "inputs": {
-                        "clip_name1": "clip_l.safetensors",
-                        "clip_name2": "t5xxl_fp16.safetensors",
-                        "type": "flux",
-                        "device": "default",
-                    },
-                    "class_type": "DualCLIPLoader",
-                },
-            }
-            eta = "~24 seconds"
-        else:
-            # Juggernaut XL — general purpose txt2img (no interior LoRA for versatility)
-            clip_src = ["1", 1]
-            workflow = {
-                **self._sdxl_base(with_lora=False),
-                **self._sdxl_clip(prompt, SDXL_NEGATIVE, clip_src, node_pos="3", node_neg="99"),
-                "5": {
-                    "inputs": {"width": 1024, "height": 1024, "batch_size": 1},
-                    "class_type": "EmptyLatentImage",
-                },
-                "6": {
-                    "inputs": {
-                        "seed": seed,
-                        "steps": SDXL_STEPS,
-                        "cfg": SDXL_CFG,
-                        "sampler_name": SDXL_SAMPLER,
-                        "scheduler": SDXL_SCHEDULER,
-                        "denoise": 1.0,
-                        "model": ["1", 0],
-                        "positive": ["3", 0],
-                        "negative": ["99", 0],
-                        "latent_image": ["5", 0],
-                    },
-                    "class_type": "KSampler",
-                },
-                "7": {
-                    "inputs": {"samples": ["6", 0], "vae": ["4", 0]},
-                    "class_type": "VAEDecode",
-                },
-                "8": {
-                    "inputs": {"filename_prefix": "SDXL_owui_", "images": ["7", 0]},
-                    "class_type": "SaveImage",
-                },
-            }
-            eta = "~30 seconds"
+                "class_type": "KSampler",
+            },
+            "7": {
+                "inputs": {"samples": ["6", 0], "vae": ["4", 0]},
+                "class_type": "VAEDecode",
+            },
+            "8": {
+                "inputs": {"filename_prefix": "SDXL_owui_", "images": ["7", 0]},
+                "class_type": "SaveImage",
+            },
+        }
+        eta = "~30 seconds"
 
         try:
             prompt_id = await self._submit_workflow(workflow)
@@ -1455,7 +1388,7 @@ class Tools:
                 "inputs": {"ipadapter_file": IPADAPTER_SDXL},
                 "class_type": "IPAdapterModelLoader",
             },
-            # CLIPVisionLoader loads CLIP ViT-H (already present, NOT SigLIP — that was SD3.5 only)
+            # CLIPVisionLoader loads CLIP ViT-H (already present)
             "31": {
                 "inputs": {"clip_name": CLIP_VISION_VIT_H},
                 "class_type": "CLIPVisionLoader",
