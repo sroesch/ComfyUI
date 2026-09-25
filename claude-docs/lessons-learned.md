@@ -1,16 +1,16 @@
 # Lessons Learned — ComfyUI Stack
 
-Hard-won lessons from building, deploying, and running the SDXL/FLUX stack. OWUI-tool-specific lessons live in [integrations.md](./integrations.md).
+Hard-won lessons from building, deploying, and running the SDXL + FLUX stack (FLUX.2 klein current; SD3.5 and FLUX.1-schnell retired 2026-09-25, so lessons naming them are history). OWUI-tool-specific lessons live in [integrations.md](./integrations.md).
 
 ## Infrastructure / macOS
 
-1. **cfg=1.0 is non-negotiable for FLUX** — distilled models break at higher values.
+1. **cfg=1.0 is non-negotiable for FLUX.2 klein** — guidance-distilled models break at higher values (it was equally true of the retired FLUX.1-schnell).
 2. **`PYTORCH_ENABLE_MPS_FALLBACK=1` must be exported** before launching (not just set in script).
 3. **`--listen 0.0.0.0` required** for any access beyond localhost (Caddy, network clients).
 4. **Caddyfile: `/opt/homebrew/etc/Caddyfile`** — not `~/Caddyfile`.
 5. **Firefox HSTS** can silently force HTTPS on HTTP-only blocks — use Chrome for first test.
-6. **FLUX and SDXL cannot run simultaneously** — sequential only, swap between jobs.
-7. **CLIP-L and T5-XXL are shared** — one copy on disk serves both FLUX and SD3.5.
+6. **FLUX.2 klein and SDXL cannot run simultaneously** — sequential only, swap between jobs.
+7. **(History) CLIP-L and T5-XXL were shared** — one copy on disk served both FLUX.1 and SD3.5. Both were removed with those models on 2026-09-25; klein uses its own `qwen_3_8b` encoder.
 8. **Generation time regression** (times increasing) = memory leak → restart ComfyUI.
 9. **VAEDecodeTiled causes black images on MPS** — NEVER use it. VAEDecode only. NaN after long sessions → restart ComfyUI to clear MPS state.
 10. **After NaN in a session, subsequent runs also produce NaN** — MPS accumulates corrupted state across runs in same process. If `invalid value encountered in cast` appears, restart: `kill $(lsof -ti :8189) && ./start_comfyui.sh`.
@@ -52,7 +52,7 @@ Hard-won lessons from building, deploying, and running the SDXL/FLUX stack. OWUI
 
 ## SDXL IP-Adapter / LoRA
 
-34. **SDXL IP-Adapter uses `comfyui_ipadapter_plus`** (IPAdapterModelLoader + IPAdapterAdvanced), NOT the SD3 `ComfyUI-InstantX-IPAdapter-SD3` node.
+34. **SDXL IP-Adapter uses `comfyui_ipadapter_plus`** (IPAdapterModelLoader + IPAdapterAdvanced), NOT the SD3 `ComfyUI-InstantX-IPAdapter-SD3` node (removed 2026-09-25).
 35. **SDXL IP-Adapter uses CLIP ViT-H** (`clip_vision_vit-h.safetensors`), NOT SigLIP.
 36. **IP-Adapter `CLIPVisionEncode` requires `"crop": "center"` field** — omitting causes "Required input is missing: crop" error.
 37. **`VAEEncode` is safe with SDXL on MPS** — the NaN issue was SD3.5-specific.
@@ -87,3 +87,4 @@ Hard-won lessons from building, deploying, and running the SDXL/FLUX stack. OWUI
 57. **klein I2I can't do "big change + locked layout" at any global denoise** — empirically across 0.45/0.60/0.75: low denoise preserves geometry but won't apply a large material/color swap at all (at CFG 1 there's no guidance to overcome the input-image prior); 0.75 applies the change but drifts the whole room. This is the img2img mechanism's limit, not a klein flaw. For staging swaps use EDIT or PAINT instead.
 58. **EDIT mode is reference-latent (Kontext) instruction editing, not img2img** — routes the image through `ReferenceLatent` nodes (supports up to **2** images for element-combining, e.g. "put the jacket from image 2 on the person in image 1"). It lands large changes *while* preserving layout where I2I can't. Two traps: (a) prompt is **imperative** ("Change the cabinets to green. Keep everything else the same"), NOT a full-scene description — over-describing causes drift; (b) **location-scope words bleed** — "perimeter counters along the back wall" also recolored the backsplash (it's on the back wall). Defend a preserved element by naming it + its material explicitly.
 59. **PAINT mask controls object SIZE/COUNT, not just location** — the model fills the masked *volume*, so an oversized mask produced a whole sectional from a single-sofa prompt, oversized. Mask the object's full volume incl. **vertical height** (a sofa's back rises off the floor — a floor-only mask squashes it). Always add a grounding cue ("realistic contact shadows on the wood floor") for believable furniture. Inpaint prompt describes **only the masked fill**, not the room. Build complex scenes in **layered passes** (sofa, then rug as a separate mask) for clean control. PAINT is the bleed-proof tool — you draw the boundary instead of describing it.
+60. **The klein one-node's settings live in browser localStorage, not the workflow** — separate per browser *and* per address (`192.168.1.65:8188` ≠ the tailnet name). On a fresh origin, "External model/clip/vae inputs" defaults OFF, and with it off the node **ignores the wired `Unet Loader (GGUF)`** ("the toggle is the single source of truth" in the node JS) and falls back to the MODEL dropdown, which reads `none` — the run fails. LoRA/BG-model picks also reset. Fix: toggle External inputs ON and re-pick the LoRAs; nothing server-side is wrong (found at COMFY-10 Gate B, 2026-09-25).

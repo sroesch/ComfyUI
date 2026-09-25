@@ -23,6 +23,10 @@ OWUI tool quality + identity/expression control on `transform_image`.
 - **OWUI General Chat system prompt** now includes prompt-refinement escape hatch, AVAILABLE SKILLS block, `appearance_strength` param-name enforcement, MJ-flag stripping, InstantID no-face-descriptors rule, confabulation-guard rule.
 - **SDXL Prompt Writing skill v2** drafted at `~/Desktop/SDXL_Prompt_Writing_v2.md`.
 
+## 2026-09-25 — SD3.5 + FLUX.1-schnell retired (COMFY-10)
+
+Only SDXL and FLUX.2 klein remain. Tool v5.9.3 aliases every `generate_image` `model` value to Juggernaut XL (the v5.9.2 routing fix above is moot now). Weights and 5 orphan custom nodes archived to the NAS; ComfyUI 142 → 61 GB. Archive + restore: [models.md](./models.md) "Retired 2026-09".
+
 ## Phase 13 — Next
 
 Next-steps list (expression-control end_at fix, staging feedback, inpaint export, LoRA replacement, n8n integration) now lives on the roadmap board → `~/roadmap-board/data/comfyui.md`.

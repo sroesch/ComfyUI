@@ -10,7 +10,7 @@
 
 | Function | Description | Timeout | Notes |
 |----------|-------------|---------|-------|
-| `generate_image(prompt, model)` | txt2img; model="flux" or "sdxl"; no LoRA on SDXL path | — | Imperative param description routes correctly to SDXL for MLS prompts (v5.9.2 fix) |
+| `generate_image(prompt, model="sdxl")` | txt2img, always Juggernaut XL; no LoRA | — | Since v5.9.3 (COMFY-10) every `model` value renders SDXL; the param stays so saved prompts and chats that pass `model="flux"` or `"sd35"` still work. Status label is always "Juggernaut XL" |
 | `transform_image(prompt, appearance_strength, image_url)` | InstantID + 2-pass FaceDetailer | 360s | Prompt = attire/scene only. Status string echoes `appearance_strength` (signature name) to prevent confabulation |
 | `edit_image(prompt, image_url, denoise)` | img2img + Interior LoRA; room restyling | — | denoise=0.65 default |
 | `stage_room(prompt, denoise, controlnet_strength)` | Dual ControlNet (depth+MLSD) + Interior LoRA + watermark | 300s | 50 steps; furnished room restyling |

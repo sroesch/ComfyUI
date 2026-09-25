@@ -1,10 +1,6 @@
-# Prompt Engineering — FLUX + SDXL
+# Prompt Engineering — SDXL + FLUX.2 klein
 
-## FLUX — Dual Encoder
-
-- `clip_l` (77-token hard limit): short comma-separated keywords — search-tag / hashtag style.
-- `t5xxl` (~unlimited): full natural language description, materials, lighting, atmosphere, camera style.
-- Negative prompts: same short phrase in both inputs (`blurry, low quality, distorted, dark`).
+FLUX.2 klein prompt style is per mode (prose for T2I, imperative + preserve clause for EDIT, fill-only for PAINT) — see the mode table in [models.md](./models.md). The FLUX.1 dual-encoder (clip_l/t5xxl) rules were retired with FLUX.1-schnell on 2026-09-25.
 
 ## SDXL — CLIPTextEncodeSDXL
 

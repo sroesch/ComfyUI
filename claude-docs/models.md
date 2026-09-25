@@ -4,25 +4,14 @@
 
 | Use Case | Model | Reason |
 |----------|-------|--------|
-| Social media / blog | FLUX.1-schnell | ~24s, fast iteration |
-| Print / MLS photos | SDXL Juggernaut XL | Photorealistic, LoRA ecosystem, negative prompts work |
+| Any text-to-image (MLS, print, social media, blog) | SDXL Juggernaut XL (`generate_image`) | Photorealistic, LoRA ecosystem, negative prompts work; the only txt2img model in the OWUI tool |
 | Restyling furnished rooms | SDXL `stage_room` | Dual ControlNet depth+MLSD, Interior LoRA |
 | Placing furniture in empty rooms | SDXL `inpaint_room` | Fooocus inpaint + SAM auto-mask or manual clipspace mask |
 | Style transfer from reference | SDXL `transfer_style` | IP-Adapter Plus SDXL + ControlNet depth |
 | Face-locked portrait/headshot | SDXL `transform_image` | InstantID + 2-pass FaceDetailer |
 | FLUX.2 edit/staging experiments | FLUX.2 [klein] 9B (one-node) | Modern edit/inpaint/outpaint in a single node; **9B = personal/non-commercial only** (see license note) |
 
-**Cannot run FLUX and SDXL simultaneously** — sequential only.
-
-## FLUX.1-schnell parameters
-
-```
-DualCLIPLoader:  clip_name1=clip_l, clip_name2=t5xxl_fp16, type=flux
-KSampler:        cfg=1.0 (MUST be 1.0 for distilled; higher = severe artifacts)
-                 steps=4, sampler=euler, scheduler=simple
-VAE:             flux_vae.safetensors
-Canvas:          1024×1024
-```
+**Cannot run FLUX.2 klein and SDXL simultaneously** — sequential only.
 
 ## SDXL — Juggernaut XL (primary for all room workflows)
 
@@ -106,7 +95,6 @@ SDXL_SAMPLER="dpmpp_2m" / SDXL_SCHEDULER="karras" / SDXL_STEPS=30 / SDXL_CFG=7
 
 | Config | Unified Memory |
 |--------|----------------|
-| FLUX generation | ~32 GB |
 | SDXL generation | ~20 GB |
 | oMLX `Qwen3.6-35B-A3B-8bit` loaded | ~35 GB (8-bit weights) |
 | oMLX + SDXL concurrent | ~55 GB (est. — sum of weights) |
@@ -119,6 +107,20 @@ SDXL_SAMPLER="dpmpp_2m" / SDXL_SCHEDULER="karras" / SDXL_STEPS=30 / SDXL_CFG=7
 - `portrait` = 768×1024
 - `square` = 1024×1024
 
-## SD3.5 legacy
+## Retired 2026-09 (COMFY-10)
 
-`sd3.5_large.safetensors`, `sd3.5_vae.safetensors`, `sd3.5_large_controlnet_depth.safetensors` remain on disk but are inactive — safe to delete once SDXL is fully validated.
+SD3.5 Large and FLUX.1-schnell were retired on 2026-09-25. Only SDXL and FLUX.2 klein are current. The OWUI tool (v5.9.3) still accepts `generate_image(model=...)` for compatibility, but every value renders Juggernaut XL.
+
+**What was removed** (415 files, 86.74 GB): SD3.5 Large (`unet/sd3.5_large`, the `checkpoints/sd3.5-large/` diffusers copy, `controlnet/sd3.5_large_controlnet_depth`, `vae/sd3.5_vae`), the SD3.5 IP-Adapter pair (`ipadapter/ip-adapter.bin`, `clip_vision/siglip_vision_patch14_384`), FLUX.1-schnell (`diffusion_models/flux-schnell/`, `vae/flux_vae`), the text encoders in `models/clip/` (`clip_g`, `clip_l`, `t5xxl_fp16`, `t5xxl_fp8_e4m3fn`, `t5xxl_fp8_e4m3fn_scaled`), the duplicate `models/groundingdino/` (the live loader uses `grounding-dino/`), and 5 orphan custom nodes: `comfyui_pulid_flux_ll`, `comfyui_patches_ll`, `ComfyUI-SD3-nodes`, `comfyui-sd3-powerlab`, `ComfyUI-InstantX-IPAdapter-SD3`. The 4 empty Hugging Face cache stubs for these repos were deleted without archiving. The saved workflows that reference these models were left in place; opening one shows missing-model errors.
+
+**Archive:** `/volume1/@home/steven/retired-models-2026-09/` on the NAS (192.168.1.59). It is your private NAS home folder and is deliberately **not** in a Syncthing-managed share. The layout mirrors the ComfyUI root (`models/…`, `custom_nodes/…`). `manifest.sha256` (relative paths, verified 415/415 OK on the NAS before any local delete), `sizes.tsv` and `RESTORE.md` sit at the archive root. A local copy of the manifest and the verification logs is in `~/comfy-retire-2026-09/`.
+
+**Restore.** The NAS's UGREEN-patched rsync refuses every path while the UGOS Rsync service is off, so use tar over SSH:
+
+```bash
+cd ~/ComfyUI/ComfyUI && ssh steven@192.168.1.59 'cd /volume1/@home/steven/retired-models-2026-09 && tar cf - models custom_nodes' | tar xf -
+cd ~/ComfyUI/ComfyUI && /sbin/sha256sum -c ~/comfy-retire-2026-09/manifest.sha256
+cd ~/ComfyUI/ComfyUI && ./start_comfyui.sh
+```
+
+Restoring the weights does not bring back the FLUX.1 route in the OWUI tool. That needs `git revert` of the COMFY-10 commit (`8e38638d`) followed by `./deploy_tool.sh`.

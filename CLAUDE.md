@@ -3,7 +3,8 @@
 **Location:** `~/ComfyUI/ComfyUI/`
 **Platform:** Mac Studio M4 Max · 128 GB Unified Memory · macOS
 **ComfyUI Version:** v0.26.0
-**OWUI Tool Version:** v5.9.2
+**OWUI Tool Version:** v5.9.3
+**Models:** SDXL (Juggernaut XL) + FLUX.2 klein only. SD3.5 and FLUX.1-schnell retired 2026-09-25 (COMFY-10); NAS archive + restore → [`claude-docs/models.md`](./claude-docs/models.md) "Retired 2026-09".
 
 ## Purpose
 
@@ -19,9 +20,9 @@ Real estate marketing image generation: exteriors, interiors, lifestyle, social 
 ├── models/
 │   ├── checkpoints/juggernautXL_ragnarokBy.safetensors   ← Primary SDXL model
 │   ├── loras/E5AEA4E58685E79A84E7A68FE99FB320E5AEA4E5.fDUS.safetensors  ← Interior LoRA (watermark @ ≥0.8)
-│   ├── vae/{sdxl-vae-fp16-fix, flux_vae}.safetensors
-│   ├── diffusion_models/flux-schnell/flux1-schnell.safetensors  ← FLUX (22 GB)
-│   ├── clip/{clip_l, clip_g, t5xxl_fp16}.safetensors      ← CLIP + T5 encoders
+│   ├── vae/{sdxl-vae-fp16-fix, flux2-vae}.safetensors
+│   ├── diffusion_models/flux-2-klein-9b-BF16.gguf         ← FLUX.2 klein 9B (GGUF, 17 GiB)
+│   ├── text_encoders/qwen_3_8b.safetensors                ← klein text encoder (must match the model)
 │   ├── controlnet/{depth, canny, instantid_*}.safetensors
 │   ├── ipadapter/ip-adapter-plus_sdxl_vit-h.safetensors
 │   ├── clip_vision/clip_vision_vit-h.safetensors
@@ -88,7 +89,6 @@ Firefox HSTS cache can force HTTPS and break access — use Chrome, or clear HST
 |------|---------|
 | websocket_image_save | Save images via websocket |
 | ComfyUI-Manager | Node/model management UI |
-| comfyui_pulid_flux_ll | PuLID face consistency for FLUX |
 | comfyui_segment_anything | SAM + GroundingDINO auto-masking. **Requires `timm==0.9.2`** |
 | ComfyUI_IPAdapter_plus | SDXL IP-Adapter (transfer_style) |
 | comfyui_controlnet_aux | DepthAnythingV2Preprocessor, M-LSDPreprocessor, CannyEdgePreprocessor |
@@ -97,7 +97,6 @@ Firefox HSTS cache can force HTTPS and break access — use Chrome, or clear HST
 | ComfyUI_InstantID (cubiq) | InstantIDModelLoader, InstantIDFaceAnalysis, ApplyInstantID |
 | ComfyUI-Impact-Pack (ltdrdata) | FaceDetailer |
 | ComfyUI-Impact-Subpack (ltdrdata) | UltralyticsDetectorProvider / YOLO bbox — **separate repo from Impact-Pack** |
-| ComfyUI-SD3-nodes / comfyui-sd3-powerlab | SD3.5 TripleCLIPLoader (legacy, SD3.5 inactive) |
 | one-node-flux-2-klein (yanokusnir-ai) | All-in-one FLUX.2 [klein] node: T2I/I2I/EDIT/PAINT/FACESWAP/POSE. Deps already present: comfyui-inpaint-cropandstitch (PAINT), comfyui_controlnet_aux (POSE/DWPose). No `requirements.txt`. |
 | ComfyUI-GGUF (city96) | `Unet Loader (GGUF)` etc. — loads GGUF diffusion weights; feeds the klein node's external-loader slot. Needs `gguf` in the venv. |
 
@@ -111,13 +110,13 @@ Firefox HSTS cache can force HTTPS and break access — use Chrome, or clear HST
 
 Full list in [`claude-docs/lessons-learned.md`](./claude-docs/lessons-learned.md). The most load-bearing:
 
-- **cfg=1.0 is non-negotiable for FLUX** — distilled models break at higher values.
+- **cfg=1.0 is non-negotiable for FLUX.2 klein** — guidance-distilled; higher values break output.
 - **`PYTORCH_ENABLE_MPS_FALLBACK=1` must be exported** before launching.
 - **`--listen 0.0.0.0` required** for any access beyond localhost.
 - **Caddyfile is at `/opt/homebrew/etc/Caddyfile`** — not `~/Caddyfile`.
 - **VAEDecodeTiled causes black images on MPS** — NEVER use it. VAEDecode only.
 - **MPS NaN contamination is sticky** — once it appears, restart: `kill $(lsof -ti :8189) && ./start_comfyui.sh`.
-- **FLUX and SDXL cannot run simultaneously** — sequential only.
+- **FLUX.2 klein and SDXL cannot run simultaneously** — sequential only.
 - **Always verify `class_type` strings** against `/object_info` before deploying workflows.
 - **OWUI tool param descriptions must be imperative, not informative** — describe what to do, not what's available.
 - **OWUI tool status messages teach the LLM param names** — always echo the literal signature param name.
@@ -155,8 +154,8 @@ kill $(lsof -ti :8189) && cd ~/ComfyUI/ComfyUI && ./start_comfyui.sh
 
 **Read these files at session start when the user's task touches that area.** Auto-discovery does not pull `claude-docs/*.md` — you must read them explicitly. If the user mentions any of the trigger words below, read the matching sub-file before proposing changes.
 
-- [models.md](./claude-docs/models.md) — model decision matrix, FLUX/SDXL parameters, OWUI tool model constants, memory footprint, canvas sizes
-- [prompt-engineering.md](./claude-docs/prompt-engineering.md) — FLUX dual encoder, SDXL CLIPTextEncodeSDXL, real-estate prompt rules, SDXL_NEGATIVE
+- [models.md](./claude-docs/models.md) — model decision matrix, SDXL/FLUX.2 klein parameters, OWUI tool model constants, memory footprint, canvas sizes, retired-model archive + restore
+- [prompt-engineering.md](./claude-docs/prompt-engineering.md) — SDXL CLIPTextEncodeSDXL, real-estate prompt rules, SDXL_NEGATIVE (klein prompt style lives in models.md)
 - [integrations.md](./claude-docs/integrations.md) — OpenWebUI tool functions + workspace settings + deploy workflow + OWUI lessons; n8n integration plan
 - [lessons-learned.md](./claude-docs/lessons-learned.md) — full list of hard-won gotchas (workflow format, SAM/DINO, mask discipline, SDXL architecture, IP-Adapter/LoRA, InstantID, watermark)
 - [roadmap.md](./claude-docs/roadmap.md) — Phase 12/13 status narrative; Phases 2–11 collapsed to changelog pointer. **Open/next-step work now lives on the roadmap board** → `~/roadmap-board/data/comfyui.md` (UI: https://stevens-mac-studio.tail7c9d1c.ts.net:8448)
