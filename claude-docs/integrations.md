@@ -1,4 +1,4 @@
-# OpenWebUI + n8n Integrations
+# OpenWebUI Integrations
 
 ## OpenWebUI Integration
 
@@ -37,6 +37,7 @@ Edit `.py` → `./deploy_tool.sh` → live in OWUI. API key in `.env` (OWUI "Cre
 - **Qwen confabulates technical explanations** when a tool call produces unexpected output (because the LLM's own kwarg was dropped). Mitigate with: (a) explicit param-name enforcement in system prompt, (b) status-message discipline, (c) BOUNDARIES rule forbidding confabulation.
 - **OWUI tool param descriptions targeting LLM argument routing must be imperative, not informative.** "FLUX is fast, SDXL is detailed" describes the options; the model reads it, decides in CoT which one fits, but doesn't reliably emit the kwarg in the function call. "ALWAYS pass `model='sdxl'` for X, Y, Z; pass `'flux'` only for W" instructs the model.
 
-## n8n Integration
+## n8n Integration (dropped)
 
-Planned (medium-term). See `~/claude-project-docs/n8n_Project_Summary.md` § 7. Concept: n8n workflow triggers ComfyUI API → image generated → uploaded to Google Drive or output tab in Google Sheets as part of marketing content pipeline.
+n8n was retired 2026-10-01 (N8N-1), so the planned n8n → ComfyUI pipeline will not be built. The old concept is in `~/claude-project-docs/n8n_Project_Summary_RETIRED.md` § 7.
+

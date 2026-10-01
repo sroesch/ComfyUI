@@ -156,7 +156,7 @@ kill $(lsof -ti :8189) && cd ~/ComfyUI/ComfyUI && ./start_comfyui.sh
 
 - [models.md](./claude-docs/models.md) — model decision matrix, SDXL/FLUX.2 klein parameters, OWUI tool model constants, memory footprint, canvas sizes, retired-model archive + restore
 - [prompt-engineering.md](./claude-docs/prompt-engineering.md) — SDXL CLIPTextEncodeSDXL, real-estate prompt rules, SDXL_NEGATIVE (klein prompt style lives in models.md)
-- [integrations.md](./claude-docs/integrations.md) — OpenWebUI tool functions + workspace settings + deploy workflow + OWUI lessons; n8n integration plan
+- [integrations.md](./claude-docs/integrations.md) — OpenWebUI tool functions + workspace settings + deploy workflow + OWUI lessons (the n8n integration plan was dropped 2026-10-01)
 - [lessons-learned.md](./claude-docs/lessons-learned.md) — full list of hard-won gotchas (workflow format, SAM/DINO, mask discipline, SDXL architecture, IP-Adapter/LoRA, InstantID, watermark)
 - [roadmap.md](./claude-docs/roadmap.md) — Phase 12/13 status narrative; Phases 2–11 collapsed to changelog pointer. **Open/next-step work now lives on the roadmap board** → `~/roadmap-board/data/comfyui.md` (UI: https://stevens-mac-studio.tail7c9d1c.ts.net:8448)
 - [changelog.md](./claude-docs/changelog.md) — ComfyUI per-session narrative history (source of truth; newest on top)
