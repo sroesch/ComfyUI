@@ -19,6 +19,13 @@ Per-project narrative history (source of truth for the ComfyUI subsystem). Cross
 
 <!-- New ComfyUI entries go below this line, newest on top. -->
 
+## 2026-10-01 (Session 141) — COMFY-2: SDXL litegraph exports for all three room tools
+**Trigger:** maintenance trim batch (Lane 4). The UI workflow library still held SD3.5/FLUX.1-era graphs after COMFY-10 retired those models.
+**Fix/Task:** captured the API graphs straight from `openwebui_tool_comfyui.py` (unedited) with a scratch script that stubbed `_submit_workflow`, `_upload_image` (a real `input/` file) and `_wait_for_output`, and fed fake `__messages__` holding data-URL images (`mask_subject="floor"` for inpaint). Built `inpaint_room_manual_mask` from the auto graph by dropping GroundingDINO/SAM and wiring LoadImage MASK → MaskToImage → ImageScale (1152x768, lanczos) → ImageToMask (red) → GrowMask. Converted headlessly via Playwright: `app.loadApiJson` → `app.api.storeUserData('workflows/<name>.json', …, {overwrite:true})`. Outputs: `inpaint_room_auto_mask`, `inpaint_room_manual_mask`, `stage_room_controlnet`, `transfer_style_ipadapter`. Prompts and seeds baked into the exports are placeholders.
+**Verification:** every class_type and loader filename was valid against `/object_info`. Reloaded each saved file and ran `graphToPrompt`: 0 mismatches (20/20, 20/20, 20/20, 18/18 nodes); the only diff is the frontend-only `upload` widget on LoadImage. Steven confirmed at G5: manual-mask renders with no red nodes, and the MaskEditor painted and saved a mask.
+**Gotchas:** the frontend serves stale cached workflow files, so hard-refresh after an overwrite. Playwright `run_code_unsafe` has no `require`/`import`, so hand JSON to the page by POSTing it to `/api/userdata/<scratch>` and fetching same-origin.
+**Files/Commits:** stale workflows deleted from `user/default/workflows/` (FLUX Real Estate v1, FLUX_Real_Estate_Working_v1, SD3.5L_example_workflow, SD35_Real_Estate_Workflow, Test, Unsaved Workflow); only `FLUX 2 - One Node.json` plus the 4 new files remain. `~/Documents/ComfyUI_Workflows` commit `223a0bb` (3 SD3.5/FLUX.1 files `git rm`'d, 4 replaced; **not pushed**). Undo tarball: session scratchpad `workflows-backup-20261001.tgz`.
+
 ## 2026-09-25 (Session 29) — COMFY-10: SD3.5 + FLUX.1-schnell retired, 86.7 GB archived to NAS, tool v5.9.3
 **Trigger:** The 2026-09-25 disk sweep left ComfyUI at 142 GB, and only SDXL (Juggernaut) and FLUX.2 klein are in use. The work was planned in one session (plan `~/.claude/plans/pasted-content-id-fad5-picking-up-goofy-adleman.md`) and executed in a fresh one.
 **Fix/Task:**
